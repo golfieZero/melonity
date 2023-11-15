@@ -1,9 +1,11 @@
 const Weaver = {};
 let positions = [];
+let health = [];
 let isActiveGame = GameRules.IsActiveGame();
-let ultimate;
+let ultimate = false;
 let localHero;
 let imageHandle;
+let font = Renderer.LoadFont('Arial', 28, Enum.FontWeight.NORMAL);
 
 
 Weaver.OnGameStart = () => {
@@ -12,52 +14,57 @@ Weaver.OnGameStart = () => {
 
 Weaver.OnGameEnd = () => {
     isActiveGame = false;
-    positions = []; // Clear positions when the game ends
+    ultimate = false;
+    positions = [];
 };
 
 Weaver.OnUpdate = () => {
     if (isActiveGame) {
         localHero = EntitySystem.GetLocalHero();
-        if (EntitySystem.GetLocalHero().GetCurrentXP() >= 2440) {
+        if (localHero.GetCurrentXP() >= 2440) {
             ultimate = true;
         }
     }
 };
 
 Weaver.OnDraw = () => {
-    if (isActiveGame) {
-        if (localHero == 'C_DOTA_Unit_Hero_Weaver') {
-            if (Engine.OnceAt(0.05)) {
-                const currentPos = localHero.GetAbsOrigin();
-                positions.push(currentPos);
-                if (positions.length >= 99) {
-                    positions.shift();
-                }
+    if (isActiveGame && localHero.GetClassName() === 'C_DOTA_Unit_Hero_Weaver') {
+        if (Engine.OnceAt(0.05)) {
+            const currentPos = localHero.GetAbsOrigin();
+            positions.push(currentPos);
+            health.push(localHero.GetHealth())
+            if (positions.length > 95) {
+                positions.shift();
+                health.shift();
             }
+        }
 
-            if (ultimate) {
-                positions.forEach((pos, i) => {
-                    const [x, y] = Renderer.WorldToScreen(new Vector(pos.x, pos.y, 0));
-                    const nextPos = positions[i + 1];
-                    if (nextPos) {
-                        const [x1, y1] = Renderer.WorldToScreen(new Vector(nextPos.x, nextPos.y, 0));
-                        Renderer.DrawLine(x, y, x1, y1);
-                    }
-                });
-
-                const firstPos = positions[0];
-                if (firstPos) {
-                    const [firstX, firstY] = Renderer.WorldToScreen(new Vector(firstPos.x, firstPos.y, 0));
-                    if (!imageHandle) {
-                        imageHandle = localHero.GetImageIcon();
-                    }
-                    Renderer.DrawImage(imageHandle, firstX - 15, firstY - 10, 20, 20);
+        if (ultimate && positions.length > 1) {
+            positions.forEach((pos, i) => {
+                const [x, y] = Renderer.WorldToScreen(new Vector(pos.x, pos.y, 128));
+                const nextPos = positions[i + 1];
+                if (nextPos) {
+                    Renderer.SetDrawColor(0, 255, 255, 255);
+                    const [x1, y1] = Renderer.WorldToScreen(new Vector(nextPos.x, nextPos.y, 128));
+                    Renderer.DrawLine(x, y, x1, y1);
                 }
+            });
+
+            const firstPos = positions[0];
+            const nextHp = health[0];
+            if (firstPos) {
+                Renderer.SetDrawColor(255, 255, 255, 255);
+                const [firstX, firstY] = Renderer.WorldToScreen(new Vector(firstPos.x, firstPos.y, 128));
+                if (nextHp > localHero.GetMaxHealth() * 0.5) {
+                    Renderer.DrawText(font, firstX + 5, firstY - 15, '✓')
+                }
+                if (!imageHandle) {
+                    imageHandle = localHero.GetImageIcon();
+                }
+                Renderer.DrawImage(imageHandle, firstX - 15, firstY - 10, 20, 20);
             }
         }
     }
 };
-
-Renderer.SetDrawColor(255, 255, 255, 255);
 
 RegisterScript(Weaver);
